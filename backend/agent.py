@@ -10,7 +10,7 @@ import queries as q
 
 load_dotenv()
 
-# Wrap each function from queries.py using @tool
+# Wrap each function from queries.py using @tool so the LLM can call them.
 TOOLS = [
     tool(f)
     for f in [
@@ -31,7 +31,7 @@ TOOLS = [
     ]
 ]
 
-# Define the AI's persona, contraints, and operational workflow
+# Define agent's persona, rules, and workflow (Persian, tuned for CS students).
 SYSTEM_PROMPT = """تو دستیار دانشجویان رشته مهندسی کامپیوتر هستی. فارسی، کوتاه و ساده جواب بده.
 
 ## قوانین بسیار مهم (حتماً رعایت کن):
@@ -123,14 +123,21 @@ def ask(message, history=None):
     """Processes a user message and returns the AI's response.
 
     Args:
-        message: The user's input string.
-        history: List of previous conversation dicts (role, content).
+        message: The user's input string
+        history: Previous conversation turns: [{"role": ..., "content": ...}, ...]
+
+    Yields:
+        str: one text chunk of the assistant's answer, as the model produces it
     """
     # Prevent mutable default argument issues
     if history is None:
         history = []
-    result = agent.invoke(
-        {"messages": history + [{"role": "user", "content": message}]}
-    )
-    # Extract and return only the final text response from the agent
-    return result["messages"][-1].text
+
+    # Stream per-chunk events as the agent runs; each event is an LLM output chunk with metadata about its source node.
+    for chunk, meta in agent.stream(
+        {"messages": history + [{"role": "user", "content": message}]},
+        stream_mode="messages",
+    ):
+        # Forward only text from the final `model` node, skipping tool messages and empty chunks.
+        if meta["langgraph_node"] == "model" and chunk.text:
+            yield chunk.text

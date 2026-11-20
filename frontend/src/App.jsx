@@ -14,33 +14,49 @@ const getMessageText = (message) =>
 
 // Connects assistant-ui to the FastAPI backend.
 const adapter = {
-  // Handles messages sent from the chat interface.
-  async run({ messages, abortSignal }) {
-    // Gets the latest user message.
+  // "async *run" (a generator) lets us show the answer while it is still arriving.
+  async *run({ messages, abortSignal }) {
+    // The user's newest message (the rest is context).
     const latestMessage = messages[messages.length - 1];
 
-    // Converts previous messages into conversation history.
+    // Convert prior messages into the {role, content} format the backend expects.
     const conversationHistory = messages.slice(0, -1).map((message) => ({
       role: message.role,
       content: getMessageText(message),
     }));
 
-    // Sends the user's message and conversation history to FastAPI.
-    const response = await axios.post(
-      API_URL,
-      {
+    // fetch (not axios): axios cannot read a stream in the browser.
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // Send the new message plus history; abortSignal lets the user cancel.
+      body: JSON.stringify({
         message: getMessageText(latestMessage),
         history: conversationHistory,
-      },
-      {
-        signal: abortSignal,
-      },
-    );
+      }),
+      signal: abortSignal,
+    });
 
-    // Returns the backend response in assistant-ui's expected format.
-    return {
-      content: [{ type: "text", text: response.data.reply }],
-    };
+    // Bail out if the server returned an error status.
+    if (!response.ok) throw new Error("Chat request failed");
+
+    // Read the answer piece by piece.
+    const reader = response.body.getReader();
+    // Decoder turns raw bytes into text (stream: true handles split chars).
+    const decoder = new TextDecoder();
+    let text = "";
+
+    // Loop until the stream is exhausted.
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      // Append the newly received chunk to the accumulated text.
+      text += decoder.decode(value, { stream: true });
+
+      // Always send the full text so far, not just the new piece.
+      yield { content: [{ type: "text", text }] };
+    }
   },
 };
 
