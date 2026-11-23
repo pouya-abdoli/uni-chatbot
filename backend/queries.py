@@ -21,29 +21,6 @@ def verify_course_codes(*codes):
             return {"error": f"course code {code} not found"}
 
 
-def search_courses(word: str):
-    """Find a course by name (or part of it) and return its CODE.
-
-    CALL THIS FIRST whenever the user mentions a course by name.
-    Returns every matching course with code, title and semester:
-      - one result   -> use its code for the other tools
-      - many results -> ask the user which one they mean
-      - zero results -> the course does not exist
-    """
-    if not word or not word.strip():
-        return []
-
-    return run(
-        """
-        SELECT code, title, semester 
-        FROM courses 
-        WHERE title LIKE :w
-        ORDER BY semester, id
-    """,
-        w=f"%{word.strip()}%",
-    )
-
-
 def course_info(code: str):
     """Credits, semester and description of one course. Needs a course code."""
     return (
@@ -69,15 +46,25 @@ def course_instructors(code: str):
 
 
 def prerequisites(code: str):
-    """Direct prerequisites of a course (must be passed BEFORE it). Needs a course code."""
-    return verify_course_codes(code) or run(
-        """
-        SELECT p.code, p.title FROM course_requirements r
-        JOIN courses c ON c.id = r.course_id
-        JOIN courses p ON p.id = r.related_course_id
-        WHERE c.code = :c AND r.type = 'prereq'""",
-        c=code,
-    )
+    """Direct prerequisites of a course (must be passed BEFORE it).
+    Also returns the course description, which may contain special conditions
+    (like a minimum number of passed credits). Needs a course code."""
+    err = verify_course_codes(code)
+    if err:
+        return err
+    return {
+        "prerequisites": run(
+            """
+            SELECT p.code, p.title FROM course_requirements r
+            JOIN courses c ON c.id = r.course_id
+            JOIN courses p ON p.id = r.related_course_id
+            WHERE c.code = :c AND r.type = 'prereq'""",
+            c=code,
+        ),
+        "description": run("SELECT description FROM courses WHERE code = :c", c=code)[
+            0
+        ]["description"],
+    }
 
 
 def corequisites(code: str):
@@ -214,3 +201,20 @@ def prereq_pairs():
         JOIN courses p ON p.id = r.related_course_id
         WHERE r.type = 'prereq'
         ORDER BY c.semester""")
+
+
+def course_details(code: str):
+    """PREFERRED for any question about one course. Returns credits, semester,
+    description, instructors, prerequisites and co-requisites in one call.
+    Use this instead of calling course_info, course_instructors,
+    prerequisites or corequisites separately."""
+
+    err = verify_course_codes(code)
+    if err:
+        return err
+    return {
+        "info": course_info(code),
+        "instructors": course_instructors(code),
+        "prerequisites": prerequisites(code)["prerequisites"],
+        "corequisites": corequisites(code),
+    }

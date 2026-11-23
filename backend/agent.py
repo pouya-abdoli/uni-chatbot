@@ -15,7 +15,6 @@ load_dotenv()
 TOOLS = [
     tool(f)
     for f in [
-        q.search_courses,
         q.course_info,
         q.course_instructors,
         q.instructor_courses,
@@ -29,6 +28,7 @@ TOOLS = [
         q.courses_with_prereq_and_coreq,
         q.coreq_pairs,
         q.prereq_pairs,
+        q.course_details
     ]
 ]
 
@@ -43,7 +43,7 @@ TOOLS = [
 
 agent = create_agent(
     model=ChatOpenAI(
-        model="openrouter/free",
+        model="nvidia/nemotron-3-ultra-550b-a55b:free",
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         temperature=0,
