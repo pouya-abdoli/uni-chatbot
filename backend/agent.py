@@ -23,7 +23,6 @@ TOOLS = [
         q.prerequisites,
         q.corequisites,
         q.can_take_together,
-        q.required_by,
         q.courses_without_prereq,
         q.courses_with_prereq_and_coreq,
         q.coreq_pairs,

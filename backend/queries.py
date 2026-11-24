@@ -46,9 +46,11 @@ def course_instructors(code: str):
 
 
 def prerequisites(code: str):
-    """Direct prerequisites of a course (must be passed BEFORE it).
-    Also returns the course description, which may contain special conditions
-    (like a minimum number of passed credits). Needs a course code."""
+    """Prerequisite info for one course, in both directions:
+    - "prerequisites": courses to pass BEFORE this course
+    - "required_by": courses that need THIS course as their prerequisite
+    - "description": may contain special enrollment conditions
+    Use for any question about prerequisites. Needs a course code."""
     err = verify_course_codes(code)
     if err:
         return err
@@ -59,6 +61,14 @@ def prerequisites(code: str):
             JOIN courses c ON c.id = r.course_id
             JOIN courses p ON p.id = r.related_course_id
             WHERE c.code = :c AND r.type = 'prereq'""",
+            c=code,
+        ),
+        "required_by": run(
+            """
+            SELECT c.code, c.title FROM course_requirements r
+            JOIN courses c ON c.id = r.course_id
+            JOIN courses p ON p.id = r.related_course_id
+            WHERE p.code = :c AND r.type = 'prereq'""",
             c=code,
         ),
         "description": run("SELECT description FROM courses WHERE code = :c", c=code)[
@@ -81,18 +91,6 @@ def corequisites(code: str):
         JOIN courses c ON c.id = r.course_id
         JOIN courses p ON p.id = r.related_course_id
         WHERE p.code = :c AND r.type = 'coreq'""",
-        c=code,
-    )
-
-
-def required_by(code: str):
-    """Which courses have this course as a prerequisite. Needs a course code."""
-    return verify_course_codes(code) or run(
-        """
-        SELECT c.code, c.title FROM course_requirements r
-        JOIN courses c ON c.id = r.course_id
-        JOIN courses p ON p.id = r.related_course_id
-        WHERE p.code = :c AND r.type = 'prereq'""",
         c=code,
     )
 
