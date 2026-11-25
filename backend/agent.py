@@ -27,7 +27,7 @@ TOOLS = [
         q.courses_with_prereq_and_coreq,
         q.coreq_pairs,
         q.prereq_pairs,
-        q.course_details
+        q.course_details,
     ]
 ]
 
@@ -46,6 +46,7 @@ agent = create_agent(
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         temperature=0,
+        extra_body={"reasoning": {"enabled": False}},
     ),
     tools=TOOLS,
     system_prompt=build_system_prompt(),
