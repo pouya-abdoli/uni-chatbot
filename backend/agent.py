@@ -31,26 +31,45 @@ TOOLS = [
     ]
 ]
 
-# Instantiate the agent with the Gemini model
+# OpenRouter API – Nemotron 3 Ultra
 # agent = create_agent(
-#     model=ChatGoogleGenerativeAI(
-#         model=os.getenv("MODEL_NAME", "gemini-3.8-flash"), temperature=0
+#     model=ChatOpenAI(
+#         model="nvidia/nemotron-3-ultra-550b-a55b:free",
+#         openai_api_base="https://openrouter.ai/api/v1",
+#         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+#         temperature=0,
+#         extra_body={"reasoning": {"enabled": False}},
 #     ),
 #     tools=TOOLS,
-#     system_prompt=SYSTEM_PROMPT,
+#     system_prompt=build_system_prompt(),
 # )
 
+# GapGPT API – GPT-6 Luna
 agent = create_agent(
     model=ChatOpenAI(
-        model="nvidia/nemotron-3-ultra-550b-a55b:free",
-        openai_api_base="https://openrouter.ai/api/v1",
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        model="gpt-6-luna",
+        base_url="https://api.gapgpt.ir/v1",
+        api_key=os.getenv("GAPGPT_API_KEY"),
         temperature=0,
-        extra_body={"reasoning": {"enabled": False}},
+        reasoning_effort="none",
+        streaming=True,
     ),
     tools=TOOLS,
     system_prompt=build_system_prompt(),
 )
+
+# Production – OpenAI GPT-6 Luna
+# agent = create_agent(
+#     model=ChatOpenAI(
+#         model="gpt-6-luna",
+#         api_key=os.getenv("CHATGPT_API_KEY"),
+#         temperature=0,
+#         reasoning_effort="none",
+#         streaming=True,
+#     ),
+#     tools=TOOLS,
+#     system_prompt=build_system_prompt(),
+# )
 
 
 # Chat interface
